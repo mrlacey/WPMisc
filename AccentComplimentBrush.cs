@@ -39,76 +39,10 @@ namespace MRLacey
                 {
                     var currentAccentColorHex = (Color)Application.Current.Resources["PhoneAccentColor"];
 
-                    Color compliment;
+                    var hsl = HslColor.FromColor(currentAccentColorHex);
+                    hsl.ConvertToCompliment();
 
-                    // Compliments generated with help from http://www.colorsontheweb.com/colorwizard.asp
-                    switch (currentAccentColorHex.ToString())
-                    {
-                        case "#FFF0A30A": // Amber
-                            compliment = Color.FromArgb(255, 9, 86, 240); // #0956F0
-                            break;
-                        case "#FF825A2C": // Brown
-                            compliment = Color.FromArgb(255, 44, 84, 130); // #2C5482
-                            break;
-                        case "#FF0050EF": // Cobalt
-                            compliment = Color.FromArgb(255, 239, 158, 0); // #EF9E00
-                            break;
-                        case "#FFA20025": // Crimson
-                            compliment = Color.FromArgb(255, 0, 162, 125); // #00A27D
-                            break;
-                        case "#FF1BA1E2": // Cyan
-                            compliment = Color.FromArgb(255, 226, 92, 27); // #E25C1B
-                            break;
-                        case "#FF008A00": // Emerald
-                            compliment = Color.FromArgb(255, 138, 0, 138); // #8A008A
-                            break;
-                        case "#FF60A917": // Green
-                            compliment = Color.FromArgb(255, 96, 23, 169); // #6017A9
-                            break;
-                        case "#FF6A00FF": // Indigo
-                            compliment = Color.FromArgb(255, 149, 255, 0); // #95FF00
-                            break;
-                        case "#FFA4C400": // Lime
-                            compliment = Color.FromArgb(255, 32, 0, 196); // #2000C4
-                            break;
-                        case "#FFD80073": // Magenta
-                            compliment = Color.FromArgb(255, 0, 216, 100); // #00D864
-                            break;
-                        case "#FF76608A": // Mauve
-                            compliment = Color.FromArgb(255, 115, 138, 96); // #738A60
-                            break;
-                        case "#FF6D8764": // Olive
-                            compliment = Color.FromArgb(255, 125, 99, 135); // #7D6387
-                            break;
-                        case "#FFFA6800": // Orange
-                            compliment = Color.FromArgb(255, 0, 145, 250); // #0091FA
-                            break;
-                        case "#FFF472D0": // Pink
-                            compliment = Color.FromArgb(255, 113, 244, 149); // #71F495
-                            break;
-                        case "#FFE51400": // Red
-                            compliment = Color.FromArgb(255, 0, 209, 229); // #00D1E5
-                            break;
-                        case "#FF647687": // Steel
-                            compliment = Color.FromArgb(255, 135, 117, 99); // #877563
-                            break;
-                        case "#FF87794E": // Taupe
-                            compliment = Color.FromArgb(255, 78, 91, 135); // #4E5B87
-                            break;
-                        case "#FF00ABA9": // Teal
-                            compliment = Color.FromArgb(255, 171, 0, 2); // #AB0002
-                            break;
-                        case "#FFAA00FF": // Violet
-                            compliment = Color.FromArgb(255, 85, 255, 0); // #55FF00
-                            break;
-                        case "#FFE3C800": // Yellow
-                            compliment = Color.FromArgb(255, 0, 27, 227); // #001BE3
-                            break;
-                        default:
-                            // Fallback color - necessary as user may have a non-standard accent color (such as operator or OEM defined)
-                            compliment = ((SolidColorBrush)Application.Current.Resources["PhoneBackgroundBrush"]).Color;
-                            break;
-                    }
+                    Color compliment = hsl.ToColor();
 
                     Application.Current.Resources.Add(ResourceName, new SolidColorBrush(compliment));
                 }
@@ -117,6 +51,209 @@ namespace MRLacey
             {
                 System.Diagnostics.Debug.WriteLine("Something went wrong - ask for your money back");
                 System.Diagnostics.Debug.WriteLine(exc);
+            }
+        }
+
+        /// <summary>
+        /// Color as Hue, Saturation and Luminosity rather than RGB values
+        /// </summary>
+        private struct HslColor
+        {
+            /// <summary>
+            /// The alpha value
+            ///  from 0 to 1
+            /// </summary>
+            private double alpha;
+
+            /// <summary>
+            /// The hue value
+            ///  from 0 to 360
+            /// </summary>
+            private double hue;
+
+            /// <summary>
+            /// The saturation value
+            ///  from 0 to 1
+            /// </summary>
+            private double saturation;
+
+            /// <summary>
+            /// The luminosity value
+            ///  from 0 to 1
+            /// </summary>
+            private double luminosity;
+
+            /// <summary>
+            /// Create the HSL representation of the color.
+            /// </summary>
+            /// <param name="color">The color to convert from.</param>
+            /// <returns>The HSLColor</returns>
+            public static HslColor FromColor(Color color)
+            {
+                var hslc = new HslColor();
+                hslc.alpha = color.A;
+
+                double red = ByteToPercent(color.R);
+                double green = ByteToPercent(color.G);
+                double blue = ByteToPercent(color.B);
+
+                double max = Math.Max(blue, Math.Max(red, green));
+                double min = Math.Min(blue, Math.Min(red, green));
+
+                if (max == min)
+                {
+                    hslc.hue = 0;
+                }
+                else if (max == red && green >= blue)
+                {
+                    hslc.hue = 60 * ((green - blue) / (max - min));
+                }
+                else if (max == red && green < blue)
+                {
+                    hslc.hue = (60 * ((green - blue) / (max - min))) + 360;
+                }
+                else if (max == green)
+                {
+                    hslc.hue = (60 * ((blue - red) / (max - min))) + 120;
+                }
+                else if (max == blue)
+                {
+                    hslc.hue = (60 * ((red - green) / (max - min))) + 240;
+                }
+
+                hslc.luminosity = .5 * (max + min);
+
+                if (max == min)
+                {
+                    hslc.saturation = 0;
+                }
+                else if (hslc.luminosity <= .5)
+                {
+                    hslc.saturation = (max - min) / (2 * hslc.luminosity);
+                }
+                else if (hslc.luminosity > .5)
+                {
+                    hslc.saturation = (max - min) / (2 - (2 * hslc.luminosity));
+                }
+
+                return hslc;
+            }
+
+            /// <summary>
+            /// Convert the color to it's compliment (opposite position on the color wheel).
+            /// </summary>
+            public void ConvertToCompliment()
+            {
+                this.hue += 180;
+
+                if (this.hue > 360)
+                {
+                    this.hue -= 360;
+                }
+            }
+
+            /// <summary>
+            /// Convert the H, L and S values back to RGB as a System.Color.
+            /// </summary>
+            /// <returns>The H, S and L values converted back to RGB</returns>
+            public Color ToColor()
+            {
+                double q = 0;
+
+                if (this.luminosity < .5)
+                {
+                    q = this.luminosity * (1 + this.saturation);
+                }
+                else
+                {
+                    q = this.luminosity + this.saturation - (this.luminosity * this.saturation);
+                }
+
+                double p = (2 * this.luminosity) - q;
+                double hk = this.hue / 360;
+                double r = GetComponent(Normalize(hk + (1.0 / 3.0)), p, q);
+                double g = GetComponent(Normalize(hk), p, q);
+                double b = GetComponent(Normalize(hk - (1.0 / 3.0)), p, q);
+
+                return Color.FromArgb(PercentToByte(this.alpha), PercentToByte(r), PercentToByte(g), PercentToByte(b));
+            }
+
+            /// <summary>
+            /// Convert byte to percentage.
+            /// </summary>
+            /// <param name="value">The value to convert.</param>
+            /// <returns>The byte as a percentage (between 0 and 1)</returns>
+            private static double ByteToPercent(byte value)
+            {
+                double d = value;
+                d /= 255;
+                return d;
+            }
+
+            /// <summary>
+            /// Convert percent to byte.
+            /// </summary>
+            /// <param name="value">The value to convert.</param>
+            /// <returns>The percentage (0 to 1) value to a byte</returns>
+            private static byte PercentToByte(double value)
+            {
+                value *= 255;
+                value += .5;
+
+                if (value > 255)
+                {
+                    value = 255;
+                }
+                else if (value < 0)
+                {
+                    value = 0;
+                }
+
+                return (byte)value;
+            }
+
+            /// <summary>
+            /// Normalizes the specified value between 0 and 1.
+            /// </summary>
+            /// <param name="value">The value to normalize.</param>
+            /// <returns>The normalized value</returns>
+            private static double Normalize(double value)
+            {
+                if (value < 0)
+                {
+                    value += 1;
+                }
+                else if (value > 1)
+                {
+                    value -= 1;
+                }
+
+                return value;
+            }
+
+            /// <summary>
+            /// Gets the component.
+            /// </summary>
+            /// <param name="tc">The t c.</param>
+            /// <param name="p">The p.</param>
+            /// <param name="q">The q.</param>
+            /// <returns>The component value</returns>
+            private static double GetComponent(double tc, double p, double q)
+            {
+                if (tc < (1.0 / 6.0))
+                {
+                    return p + ((q - p) * 6 * tc);
+                }
+                else if (tc < .5)
+                {
+                    return q;
+                }
+                else if (tc < (2.0 / 3.0))
+                {
+                    return p + ((q - p) * 6 * ((2.0 / 3.0) - tc));
+                }
+
+                return p;
             }
         }
     }
